@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ユニット営業進捗</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto Sans JP:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:        #F5F5F7;
+      --surface:   #FFFFFF;
+      --surface2:  #F0F0F4;
+      --border:    #E0E0E8;
+      --accent:    #FF6B35;
+      --accent2:   #FFB347;
+      --text:      #1A1A2E;
+      --text-sub:  #6B6B8A;
+      --success:   #0D9E8A;
+      --danger:    #E03050;
+      --radius:    12px;
+      --radius-sm: 8px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter','Noto Sans JP',sans-serif; font-size: 14px; line-height: 1.6; background: var(--bg); color: var(--text); }
+
+    /* ===== ヘッダー ===== */
+    .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 24px; position: sticky; top: 0; z-index: 100; }
+    .header-inner { max-width: 1120px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .header-title { font-size: 15px; font-weight: 800; }
+    .header-sub { font-size: 11px; color: var(--text-sub); }
+    .header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .h-badge { font-size: 12px; font-weight: 700; background: rgba(255,107,53,0.12); color: var(--accent); padding: 3px 12px; border-radius: 20px; letter-spacing: 0.04em; white-space: nowrap; }
+    .csv-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; font-weight: 700; color: var(--text-sub); cursor: pointer; transition: all 0.15s; white-space: nowrap; font-family: inherit; }
+    .csv-btn:hover { border-color: var(--success); color: var(--success); }
+    .clear-btn { background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; font-weight: 700; color: var(--text-sub); cursor: pointer; transition: all 0.15s; white-space: nowrap; font-family: inherit; }
+    .clear-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+    /* ===== メイン ===== */
+    .main { max-width: 1120px; margin: 0 auto; padding: 20px 24px 48px; }
+
+    /* ===== 月タブ ===== */
+    .month-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 16px; scrollbar-width: none; }
+    .month-tabs::-webkit-scrollbar { display: none; }
+    .month-tab { flex-shrink: 0; background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius-sm); padding: 8px 16px; font-size: 13px; font-weight: 700; color: var(--text-sub); cursor: pointer; white-space: nowrap; transition: all 0.15s; font-family: inherit; }
+    .month-tab:hover { border-color: var(--accent); color: var(--text); }
+    .month-tab.active { background: rgba(255,107,53,0.10); border-color: var(--accent); color: var(--accent); }
+    .add-month-btn { flex-shrink: 0; background: transparent; border: 2px dashed var(--border); border-radius: var(--radius-sm); padding: 8px 14px; font-size: 18px; color: var(--text-sub); cursor: pointer; line-height: 1; transition: all 0.15s; font-family: inherit; }
+    .add-month-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ===== 週セレクター ===== */
+    .week-selector { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 16px; }
+    .week-btn { background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius-sm); padding: 10px 8px; text-align: center; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+    .week-btn:hover { border-color: var(--accent); }
+    .week-btn.active { background: rgba(255,107,53,0.10); border-color: var(--accent); }
+    .wk-num { font-size: 20px; font-weight: 800; color: var(--text); }
+    .wk-sub { font-size: 10px; color: var(--text-sub); }
+    .week-btn.active .wk-num, .week-btn.active .wk-sub { color: var(--accent); }
+
+    /* ===== マイルストーントグル ===== */
+    .milestone-toggle { width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 14px; font-size: 12px; font-weight: 700; color: var(--text-sub); cursor: pointer; margin-bottom: 8px; transition: all 0.15s; display: flex; align-items: center; justify-content: space-between; font-family: inherit; }
+    .milestone-toggle:hover { border-color: var(--accent); color: var(--text); }
+    .milestone-toggle.open { border-color: var(--accent); color: var(--accent); background: rgba(255,107,53,0.05); }
+    .milestone-toggle .toggle-icon { font-size: 10px; transition: transform 0.2s; }
+    .milestone-toggle.open .toggle-icon { transform: rotate(180deg); }
+    .milestone-wrap { overflow: hidden; max-height: 0; transition: max-height 0.4s ease, margin 0.3s ease; }
+    .milestone-wrap.open { max-height: 700px; margin-bottom: 16px; }
+
+    /* ===== マイルストーンテーブル ===== */
+    .milestone-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); overflow-x: auto; }
+    .ms-table { width: 100%; border-collapse: collapse; min-width: 560px; }
+    .ms-table th { font-size: 10px; font-weight: 600; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 8px 8px; text-align: center; }
+    .ms-table th.ms-name-col { text-align: left; padding-left: 0; }
+    .ms-table td { padding: 6px 6px; vertical-align: middle; }
+    .ms-table tbody tr:not(:last-child) { border-bottom: 1px solid var(--border); }
+    .ms-member-name { font-size: 13px; font-weight: 700; color: var(--text); padding-left: 2px; }
+    .ms-ctrl { display: flex; align-items: center; justify-content: center; gap: 3px; }
+    .ms-ctrl-btn { width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); font-size: 15px; line-height: 1; cursor: pointer; color: var(--text-sub); flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.12s; padding: 0; font-family: inherit; user-select: none; }
+    .ms-ctrl-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .ms-num { width: 50px; background: rgba(255,107,53,0.06); border: 1px solid rgba(255,107,53,0.2); border-radius: 6px; padding: 4px 2px; font-size: 12px; font-weight: 700; color: var(--text); text-align: center; font-family: inherit; outline: none; transition: all 0.15s; }
+    .ms-num:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(255,107,53,0.15); }
+    .ms-num::-webkit-inner-spin-button, .ms-num::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .ms-num.wide { width: 62px; }
+    .ms-unit { font-size: 9px; color: var(--text-sub); text-align: center; margin-top: 1px; font-weight: 400; }
+
+    /* ===== KPI ===== */
+    .kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px; }
+    .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 12px 14px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.06); position: relative; overflow: hidden; }
+    .kpi-card::before { content: attr(data-icon); position: absolute; right: -4px; top: -12px; font-size: 68px; color: rgba(255,107,53,0.07); font-weight: 800; pointer-events: none; }
+    .kpi-label { font-size: 10px; font-weight: 600; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.10em; margin-bottom: 6px; }
+    .kpi-value { font-size: 34px; font-weight: 800; color: var(--accent); letter-spacing: -0.03em; line-height: 1; }
+    .kpi-unit { font-size: 10px; font-weight: 600; color: var(--text-sub); margin-top: 4px; }
+    .kpi-progress { margin-top: 10px; display: none; }
+    .kpi-progress.visible { display: block; }
+    .progress-track { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .progress-bar { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.45s ease, background 0.3s ease; width: 0%; }
+    .progress-bar.done { background: var(--success); }
+    .progress-meta { display: flex; justify-content: space-between; margin-top: 4px; font-size: 10px; color: var(--text-sub); }
+    .progress-pct { font-weight: 700; }
+
+    /* ===== メンバーテーブル ===== */
+    .section-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .section-label { font-size: 11px; font-weight: 600; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.12em; }
+    .add-member-btn { background: transparent; border: 1px dashed var(--border); border-radius: var(--radius-sm); padding: 5px 12px; font-size: 12px; font-weight: 700; color: var(--text-sub); cursor: pointer; font-family: inherit; transition: all 0.15s; }
+    .add-member-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .member-table { width: 100%; border-collapse: collapse; min-width: 960px; }
+    .member-table .th-cat { font-size: 11px; font-weight: 700; color: var(--text); text-align: center; padding: 4px 4px 2px; }
+    .member-table .th-sub { font-size: 10px; font-weight: 600; color: var(--text-sub); text-align: center; padding: 2px 4px 10px; }
+    .member-table td { padding: 6px 4px; vertical-align: middle; }
+    .member-table tbody tr:not(.total-row) { border-bottom: 1px solid var(--border); }
+    .name-input { background: transparent; border: none; border-bottom: 1px dashed var(--border); font-size: 13px; font-weight: 700; color: var(--text); font-family: inherit; width: 64px; padding: 3px 0; outline: none; transition: border-color 0.15s; }
+    .name-input:focus { border-bottom-color: var(--accent); }
+    .remove-member-btn { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border); background: transparent; font-size: 13px; line-height: 1; cursor: pointer; color: var(--text-sub); display: flex; align-items: center; justify-content: center; transition: all 0.12s; font-family: inherit; padding: 0; margin: 0 auto; }
+    .remove-member-btn:hover { background: var(--danger); border-color: var(--danger); color: #fff; }
+    .cell-block { display: flex; flex-direction: column; align-items: center; }
+    .ctrl-wrap { display: flex; align-items: center; justify-content: center; gap: 3px; }
+    .ctrl-btn { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); font-size: 16px; font-weight: 400; line-height: 1; cursor: pointer; color: var(--text-sub); flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.12s; padding: 0; font-family: inherit; user-select: none; }
+    .ctrl-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .ctrl-btn:active { transform: scale(0.88); }
+    .num-input { width: 44px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 5px 3px; font-size: 13px; font-weight: 600; color: var(--text); text-align: center; font-family: inherit; transition: all 0.15s; }
+    .num-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(255,107,53,0.15); }
+    .num-input::-webkit-inner-spin-button, .num-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .num-input.sales { width: 60px; }
+    .target-hint { font-size: 9px; color: var(--text-sub); opacity: 0.6; text-align: center; margin-top: 3px; letter-spacing: 0.02em; height: 12px; line-height: 12px; }
+    .tag { display: inline-block; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px; }
+    .tag-done { background: var(--surface2); color: var(--text-sub); }
+    .tag-a { background: rgba(13,158,138,0.12); color: var(--success); }
+    .sep { border-left: 2px solid var(--border); }
+    .total-row td { background: rgba(255,107,53,0.05); border-top: 2px solid rgba(255,107,53,0.3) !important; }
+    .total-name { font-size: 12px; font-weight: 800; color: var(--accent); white-space: nowrap; }
+    .total-val { font-size: 14px; font-weight: 800; color: var(--accent); text-align: center; display: block; }
+
+    /* 保存インジケーター */
+    .save-indicator { position: fixed; bottom: 16px; right: 16px; font-size: 11px; font-weight: 600; color: var(--success); background: rgba(13,158,138,0.1); border: 1px solid rgba(13,158,138,0.25); border-radius: 20px; padding: 4px 12px; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+    .save-indicator.show { opacity: 1; }
+
+    @media (max-width: 600px) {
+      .kpi-grid { grid-template-columns: repeat(2,1fr); }
+      .kpi-value { font-size: 26px; }
+      .main { padding: 16px 16px 40px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div>
+      <div class="header-title">ユニット営業進捗</div>
+      <div class="header-sub">済＋A 合算 / 週次トラッキング</div>
+    </div>
+    <div class="header-right">
+      <div class="h-badge" id="h-badge">---</div>
+      <button class="csv-btn" onclick="exportCSV()">↓ CSV</button>
+      <button class="clear-btn" onclick="clearAll()">リセット</button>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="month-tabs" id="month-tabs">
+    <button class="add-month-btn" onclick="addMonth()" title="翌月を追加">＋</button>
+  </div>
+  <div class="week-selector">
+    <button class="week-btn" onclick="selectWeek(1)"><div class="wk-num">1W</div><div class="wk-sub">第1週</div></button>
+    <button class="week-btn" onclick="selectWeek(2)"><div class="wk-num">2W</div><div class="wk-sub">第2週</div></button>
+    <button class="week-btn" onclick="selectWeek(3)"><div class="wk-num">3W</div><div class="wk-sub">第3週</div></button>
+    <button class="week-btn" onclick="selectWeek(4)"><div class="wk-num">4W</div><div class="wk-sub">第4週</div></button>
+  </div>
+
+  <button class="milestone-toggle" id="ms-toggle" onclick="toggleMilestone()">
+    <span>◎ マイルストーン設定（メンバー別・月間目標）</span>
+    <span class="toggle-icon">▼</span>
+  </button>
+  <div class="milestone-wrap" id="milestone-wrap">
+    <div class="milestone-panel">
+      <table class="ms-table" id="ms-table"></table>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card" data-icon="PR">
+      <div class="kpi-label">PR</div>
+      <div class="kpi-value" id="kpi-pr" data-current="0">0</div>
+      <div class="kpi-unit">件 月計（済＋A）</div>
+      <div class="kpi-progress" id="prog-pr">
+        <div class="progress-track"><div class="progress-bar" id="bar-pr"></div></div>
+        <div class="progress-meta"><span id="prog-pr-target"></span><span class="progress-pct" id="prog-pr-pct"></span></div>
+      </div>
+    </div>
+    <div class="kpi-card" data-icon="当">
+      <div class="kpi-label">当月ネット</div>
+      <div class="kpi-value" id="kpi-cur" data-current="0">0</div>
+      <div class="kpi-unit">件 月計（済＋A）</div>
+      <div class="kpi-progress" id="prog-cur">
+        <div class="progress-track"><div class="progress-bar" id="bar-cur"></div></div>
+        <div class="progress-meta"><span id="prog-cur-target"></span><span class="progress-pct" id="prog-cur-pct"></span></div>
+      </div>
+    </div>
+    <div class="kpi-card" data-icon="翌">
+      <div class="kpi-label">翌月ネット</div>
+      <div class="kpi-value" id="kpi-nxt" data-current="0">0</div>
+      <div class="kpi-unit">件 月計（済＋A）</div>
+      <div class="kpi-progress" id="prog-nxt">
+        <div class="progress-track"><div class="progress-bar" id="bar-nxt"></div></div>
+        <div class="progress-meta"><span id="prog-nxt-target"></span><span class="progress-pct" id="prog-nxt-pct"></span></div>
+      </div>
+    </div>
+    <div class="kpi-card" data-icon="¥">
+      <div class="kpi-label">売上</div>
+      <div class="kpi-value" id="kpi-sales" data-current="0">0</div>
+      <div class="kpi-unit">万円 月計（済＋A）</div>
+      <div class="kpi-progress" id="prog-sales">
+        <div class="progress-track"><div class="progress-bar" id="bar-sales"></div></div>
+        <div class="progress-meta"><span id="prog-sales-target"></span><span class="progress-pct" id="prog-sales-pct"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-card">
+    <div class="section-header">
+      <div class="section-label">メンバー別入力</div>
+      <button class="add-member-btn" onclick="addMember()">＋ メンバー追加</button>
+    </div>
+    <div class="table-wrapper">
+      <table class="member-table">
+        <thead>
+          <tr>
+            <th rowspan="2" style="text-align:left;padding-right:10px;font-size:11px;color:var(--text-sub);">名前</th>
+            <th colspan="2" class="th-cat">PR</th>
+            <th colspan="2" class="th-cat sep">当月ネット</th>
+            <th colspan="2" class="th-cat sep">翌月ネット</th>
+            <th colspan="2" class="th-cat sep">売上（円）</th>
+            <th rowspan="2" style="width:28px;"></th>
+          </tr>
+          <tr>
+            <th class="th-sub"><span class="tag tag-done">済</span></th>
+            <th class="th-sub"><span class="tag tag-a">A</span></th>
+            <th class="th-sub sep"><span class="tag tag-done">済</span></th>
+            <th class="th-sub"><span class="tag tag-a">A</span></th>
+            <th class="th-sub sep"><span class="tag tag-done">済</span></th>
+            <th class="th-sub"><span class="tag tag-a">A</span></th>
+            <th class="th-sub sep"><span class="tag tag-done">済</span></th>
+            <th class="th-sub"><span class="tag tag-a">A</span></th>
+          </tr>
+        </thead>
+        <tbody id="member-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="save-indicator" id="save-indicator">✓ 保存済</div>
+
+<script>
+// ===== 定数 =====
+const FIELD_COUNT   = 8;
+const SALES_IDX     = [6, 7];
+const DONE_IDX      = [0, 2, 4, 6];
+const FIELD_TO_TGT  = ['pr','pr','cur','cur','nxt','nxt','sales','sales'];
+const STORAGE_KEY   = 'sales-progress-v4';
+const DEFAULT_NAMES = ['田中', '鈴木', '佐藤', '山田', '伊藤'];
+
+// ===== 状態（月ごとにメンバーが独立） =====
+// memberNames[月] = ['名前', ...]
+// data[月][週][mi][fi]
+// targets[月][mi] = { pr, cur, nxt, sales }
+const memberNames = {};
+const data        = {};
+const targets     = {};
+let monthList     = [];
+let currentMonth  = '';
+let currentWeek   = 1;
+let msOpen        = false;
+let saveTimer     = null;
+
+// ===== ローカルストレージ =====
+function saveState() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        memberNames, data, targets, monthList, currentMonth, currentWeek
+      }));
+      flashSave();
+    } catch(e) { console.warn('保存失敗:', e); }
+  }, 300);
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+    if (!s.monthList || s.monthList.length === 0) return false;
+
+    s.monthList.forEach(k => monthList.push(k));
+
+    Object.keys(s.memberNames || {}).forEach(k => { memberNames[k] = s.memberNames[k]; });
+
+    // data: 週キーは文字列で保存されるが数値アクセスでも動作する
+    Object.keys(s.data || {}).forEach(k => { data[k] = s.data[k]; });
+
+    Object.keys(s.targets || {}).forEach(k => { targets[k] = s.targets[k]; });
+
+    currentMonth = s.currentMonth || monthList[0];
+    currentWeek  = s.currentWeek  || 1;
+    return true;
+  } catch(e) { return false; }
+}
+
+function clearAll() {
+  if (!confirm('全データをリセットしますか？')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+}
+
+function flashSave() {
+  const el = document.getElementById('save-indicator');
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 1200);
+}
+
+// ===== 月ユーティリティ =====
+function dateToKey(y, m)  { return `${y}年${m}月`; }
+function nextMonthKey(key) {
+  const [, y, m] = key.match(/(\d+)年(\d+)月/);
+  let ny = +y, nm = +m + 1;
+  if (nm > 12) { nm = 1; ny++; }
+  return dateToKey(ny, nm);
+}
+
+// ===== データ初期化（月ごとのメンバーリストも管理） =====
+function initMonthData(key, prevKey) {
+  if (data[key]) return; // すでに存在
+  // 前月のメンバーリストを引き継ぐ（なければデフォルト）
+  const names = prevKey && memberNames[prevKey]
+    ? [...memberNames[prevKey]]
+    : [...DEFAULT_NAMES];
+  memberNames[key] = names;
+  data[key]    = {};
+  targets[key] = {};
+  for (let w = 1; w <= 4; w++) {
+    data[key][w]    = names.map(() => new Array(FIELD_COUNT).fill(0));
+    targets[key][w] = names.map(() => ({ pr: 0, cur: 0, nxt: 0, sales: 0 }));
+  }
+}
+
+// ===== メンバー管理（当月のみ） =====
+function addMember() {
+  const names = memberNames[currentMonth];
+  names.push(`メンバー${names.length + 1}`);
+  for (let w = 1; w <= 4; w++) {
+    data[currentMonth][w].push(new Array(FIELD_COUNT).fill(0));
+    targets[currentMonth][w].push({ pr: 0, cur: 0, nxt: 0, sales: 0 });
+  }
+  renderMilestoneTable();
+  renderTable();
+  calculate();
+}
+
+function removeMember(mi) {
+  const names = memberNames[currentMonth];
+  if (names.length <= 1) return;
+  names.splice(mi, 1);
+  for (let w = 1; w <= 4; w++) {
+    data[currentMonth][w].splice(mi, 1);
+    targets[currentMonth][w].splice(mi, 1);
+  }
+  renderMilestoneTable();
+  renderTable();
+  calculate();
+}
+
+// ===== 月タブ =====
+function addMonth() {
+  const prev = monthList.length > 0 ? monthList[monthList.length - 1] : null;
+  const next = prev
+    ? nextMonthKey(prev)
+    : (() => { const n = new Date(); return dateToKey(n.getFullYear(), n.getMonth() + 1); })();
+  if (monthList.includes(next)) return;
+  monthList.push(next);
+  initMonthData(next, prev);
+  renderMonthTabs();
+  selectMonth(next);
+}
+
+function renderMonthTabs() {
+  const c      = document.getElementById('month-tabs');
+  const addBtn = c.querySelector('.add-month-btn');
+  c.querySelectorAll('.month-tab').forEach(el => el.remove());
+  monthList.forEach(key => {
+    const btn = document.createElement('button');
+    btn.className  = 'month-tab' + (key === currentMonth ? ' active' : '');
+    btn.textContent = key;
+    btn.onclick = () => selectMonth(key);
+    c.insertBefore(btn, addBtn);
+  });
+}
+
+function selectMonth(key) {
+  currentMonth = key;
+  document.querySelectorAll('.month-tab').forEach(b => b.classList.toggle('active', b.textContent === key));
+  updateBadge();
+  renderMilestoneTable();
+  renderTable();
+  calculate();
+  saveState();
+}
+
+// ===== 週切り替え =====
+function selectWeek(w) {
+  currentWeek = w;
+  document.querySelectorAll('.week-btn').forEach((b, i) => b.classList.toggle('active', i + 1 === w));
+  updateBadge();
+  renderMilestoneTable();
+  renderTable();
+  calculate();
+  saveState();
+}
+
+function updateBadge() {
+  document.getElementById('h-badge').textContent = `${currentMonth} / ${currentWeek}W`;
+  const lbl = document.getElementById('total-label');
+  if (lbl) lbl.textContent = `${currentWeek}W 週計`;
+}
+
+// ===== マイルストーンパネル =====
+function toggleMilestone() {
+  msOpen = !msOpen;
+  document.getElementById('ms-toggle').classList.toggle('open', msOpen);
+  document.getElementById('milestone-wrap').classList.toggle('open', msOpen);
+}
+
+function renderMilestoneTable() {
+  const table  = document.getElementById('ms-table');
+  const t      = targets[currentMonth][currentWeek];
+  const names  = memberNames[currentMonth];
+
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th class="ms-name-col">名前</th>
+        <th>PR目標<div class="ms-unit">件</div></th>
+        <th>当月N目標<div class="ms-unit">件</div></th>
+        <th>翌月N目標<div class="ms-unit">件</div></th>
+        <th>売上目標<div class="ms-unit">万円</div></th>
+      </tr>
+    </thead>
+    <tbody></tbody>`;
+
+  const tbody = table.querySelector('tbody');
+  names.forEach((name, mi) => {
+    const tr = document.createElement('tr');
+
+    const tdName = document.createElement('td');
+    const nameEl = document.createElement('span');
+    nameEl.className   = 'ms-member-name';
+    nameEl.id          = `ms-name-${mi}`;
+    nameEl.textContent = name;
+    tdName.appendChild(nameEl);
+    tr.appendChild(tdName);
+
+    [['pr',''], ['cur',''], ['nxt',''], ['sales','wide']].forEach(([field, cls]) => {
+      const step = 1;
+      const td   = document.createElement('td');
+      const wrap = document.createElement('div');
+      wrap.className = 'ms-ctrl';
+
+      const adjustMs = (delta) => {
+        targets[currentMonth][currentWeek][mi][field] = Math.max(0, (targets[currentMonth][currentWeek][mi][field] || 0) + delta);
+        inp.value = targets[currentMonth][currentWeek][mi][field] || '';
+        updateTargetHints();
+        calculate();
+      };
+
+      const btnM = document.createElement('button');
+      btnM.className   = 'ms-ctrl-btn'; btnM.textContent = '−'; btnM.type = 'button';
+      btnM.onclick = () => adjustMs(-step);
+
+      const inp = document.createElement('input');
+      inp.type = 'number'; inp.min = '0';
+      inp.className   = 'ms-num' + (cls ? ' ' + cls : '');
+      inp.value       = t[mi][field] || '';
+      inp.placeholder = '0';
+      inp.addEventListener('input', e => {
+        targets[currentMonth][currentWeek][mi][field] = parseFloat(e.target.value) || 0;
+        updateTargetHints();
+        calculate();
+      });
+      inp.addEventListener('keydown', e => {
+        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+        e.preventDefault();
+        adjustMs(e.key === 'ArrowUp' ? step : -step);
+      });
+
+      const btnP = document.createElement('button');
+      btnP.className   = 'ms-ctrl-btn'; btnP.textContent = '＋'; btnP.type = 'button';
+      btnP.onclick = () => adjustMs(step);
+
+      wrap.appendChild(btnM); wrap.appendChild(inp); wrap.appendChild(btnP);
+      td.appendChild(wrap); tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  });
+}
+
+// ===== メンバーテーブル =====
+function renderTable() {
+  // マイルストーン名ラベルも同期
+  const names = memberNames[currentMonth];
+  names.forEach((name, mi) => {
+    const el = document.getElementById(`ms-name-${mi}`);
+    if (el) el.textContent = name;
+  });
+
+  const tbody = document.getElementById('member-tbody');
+  tbody.innerHTML = '';
+
+  names.forEach((name, mi) => {
+    const tr = document.createElement('tr');
+
+    // 名前
+    const tdName = document.createElement('td');
+    tdName.style.paddingRight = '10px';
+    const nameInp = document.createElement('input');
+    nameInp.type        = 'text';
+    nameInp.className   = 'name-input';
+    nameInp.value       = name;
+    nameInp.placeholder = `メンバー${mi + 1}`;
+    nameInp.addEventListener('input', e => {
+      memberNames[currentMonth][mi] = e.target.value;
+      const el = document.getElementById(`ms-name-${mi}`);
+      if (el) el.textContent = e.target.value;
+      saveState();
+    });
+    tdName.appendChild(nameInp);
+    tr.appendChild(tdName);
+
+    // 数値フィールド × 8
+    for (let fi = 0; fi < FIELD_COUNT; fi++) {
+      const td      = document.createElement('td');
+      const isSales = SALES_IDX.includes(fi);
+      const step    = isSales ? 1000 : 1;
+      if (fi > 0 && fi % 2 === 0) td.classList.add('sep');
+
+      const adjust = (delta) => {
+        const next = Math.max(0, (data[currentMonth][currentWeek][mi][fi] || 0) + delta);
+        data[currentMonth][currentWeek][mi][fi] = next;
+        inp.value = next > 0 ? next : '';
+        calculate();
+      };
+
+      const btnM = document.createElement('button');
+      btnM.className = 'ctrl-btn'; btnM.textContent = '−'; btnM.type = 'button';
+      btnM.onclick = () => adjust(-step);
+
+      const inp = document.createElement('input');
+      inp.type        = 'number'; inp.min = '0'; inp.step = step;
+      inp.className   = 'num-input' + (isSales ? ' sales' : '');
+      const val = data[currentMonth][currentWeek][mi][fi];
+      inp.value       = val > 0 ? val : '';
+      inp.placeholder = '0';
+      inp.addEventListener('input', e => {
+        data[currentMonth][currentWeek][mi][fi] = parseFloat(e.target.value) || 0;
+        calculate();
+      });
+      inp.addEventListener('keydown', e => {
+        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+        e.preventDefault();
+        adjust(e.key === 'ArrowUp' ? step : -step);
+      });
+
+      const btnP = document.createElement('button');
+      btnP.className = 'ctrl-btn'; btnP.textContent = '＋'; btnP.type = 'button';
+      btnP.onclick = () => adjust(step);
+
+      const wrap = document.createElement('div');
+      wrap.className = 'ctrl-wrap';
+      wrap.appendChild(btnM); wrap.appendChild(inp); wrap.appendChild(btnP);
+
+      const block = document.createElement('div');
+      block.className = 'cell-block';
+      block.appendChild(wrap);
+
+      const hint = document.createElement('div');
+      hint.className = 'target-hint';
+      if (DONE_IDX.includes(fi)) hint.id = `hint-${mi}-${fi}`;
+      block.appendChild(hint);
+
+      td.appendChild(block);
+      tr.appendChild(td);
+    }
+
+    // 削除ボタン
+    const tdDel = document.createElement('td');
+    tdDel.style.textAlign = 'center';
+    const delBtn = document.createElement('button');
+    delBtn.className   = 'remove-member-btn';
+    delBtn.textContent = '✕';
+    delBtn.type        = 'button';
+    delBtn.title       = `${name}を削除`;
+    delBtn.onclick     = () => removeMember(mi);
+    tdDel.appendChild(delBtn);
+    tr.appendChild(tdDel);
+
+    tbody.appendChild(tr);
+  });
+
+  // ユニット計行
+  const totalTr = document.createElement('tr');
+  totalTr.className = 'total-row';
+  const tdTN = document.createElement('td');
+  tdTN.style.paddingRight = '10px';
+  const ns = document.createElement('span');
+  ns.className   = 'total-name';
+  ns.id          = 'total-label';
+  ns.textContent = `${currentWeek}W 週計`;
+  tdTN.appendChild(ns);
+  totalTr.appendChild(tdTN);
+
+  for (let fi = 0; fi < FIELD_COUNT; fi++) {
+    const td = document.createElement('td');
+    if (fi > 0 && fi % 2 === 0) td.classList.add('sep');
+    const block = document.createElement('div');
+    block.className = 'cell-block';
+    const sp = document.createElement('span');
+    sp.className   = 'total-val';
+    sp.id          = `total-${fi}`;
+    sp.textContent = '0';
+    block.appendChild(sp);
+    const hint = document.createElement('div');
+    hint.className = 'target-hint';
+    if (DONE_IDX.includes(fi)) hint.id = `hint-total-${fi}`;
+    block.appendChild(hint);
+    td.appendChild(block);
+    totalTr.appendChild(td);
+  }
+  totalTr.appendChild(document.createElement('td'));
+  tbody.appendChild(totalTr);
+
+  updateTargetHints();
+}
+
+// ===== 目標ヒント =====
+function updateTargetHints() {
+  if (!currentMonth) return;
+  const t     = targets[currentMonth][currentWeek];
+  const names = memberNames[currentMonth];
+
+  names.forEach((_, mi) => {
+    DONE_IDX.forEach(fi => {
+      const el = document.getElementById(`hint-${mi}-${fi}`);
+      if (!el) return;
+      const val = t[mi][FIELD_TO_TGT[fi]];
+      el.textContent = val > 0 ? `目標 ${val.toLocaleString('ja-JP')}${fi === 6 ? '万円' : '件'}` : '';
+    });
+  });
+
+  DONE_IDX.forEach(fi => {
+    const el = document.getElementById(`hint-total-${fi}`);
+    if (!el) return;
+    const sum = t.reduce((a, m) => a + (m[FIELD_TO_TGT[fi]] || 0), 0);
+    el.textContent = sum > 0 ? `目標計 ${sum.toLocaleString('ja-JP')}${fi === 6 ? '万円' : '件'}` : '';
+  });
+}
+
+// ===== 計算 =====
+function calculate() {
+  const names = memberNames[currentMonth];
+  const mc    = names.length;
+
+  // ① 週間集計（表の下部・当週のみ）
+  const weekly = new Array(FIELD_COUNT).fill(0);
+  for (let mi = 0; mi < mc; mi++)
+    for (let fi = 0; fi < FIELD_COUNT; fi++)
+      weekly[fi] += (data[currentMonth][currentWeek][mi][fi] || 0);
+
+  for (let fi = 0; fi < FIELD_COUNT; fi++) {
+    const el = document.getElementById(`total-${fi}`);
+    if (!el) continue;
+    el.textContent = SALES_IDX.includes(fi)
+      ? weekly[fi].toLocaleString('ja-JP') + '円'
+      : weekly[fi].toLocaleString('ja-JP');
+  }
+
+  // ② 月間累計（全週積み上げ）→ KPI カード
+  const monthly = new Array(FIELD_COUNT).fill(0);
+  for (let w = 1; w <= 4; w++)
+    for (let mi = 0; mi < mc; mi++)
+      for (let fi = 0; fi < FIELD_COUNT; fi++)
+        monthly[fi] += (data[currentMonth][w][mi][fi] || 0);
+
+  const pr       = monthly[0] + monthly[1];
+  const cur      = monthly[2] + monthly[3];
+  const nxt      = monthly[4] + monthly[5];
+  const salesMan = (monthly[6] + monthly[7]) / 10000;
+
+  animateInt('kpi-pr',  pr);
+  animateInt('kpi-cur', cur);
+  animateInt('kpi-nxt', nxt);
+  animateFloat('kpi-sales', salesMan, 1);
+
+  // ③ 進捗バーは月間目標計（全週の目標合計）と比較
+  const tAll = { pr: 0, cur: 0, nxt: 0, sales: 0 };
+  for (let w = 1; w <= 4; w++) {
+    const t = targets[currentMonth][w];
+    tAll.pr    += t.reduce((a,m)=>a+(m.pr   ||0),0);
+    tAll.cur   += t.reduce((a,m)=>a+(m.cur  ||0),0);
+    tAll.nxt   += t.reduce((a,m)=>a+(m.nxt  ||0),0);
+    tAll.sales += t.reduce((a,m)=>a+(m.sales||0),0);
+  }
+
+  updateProgress('pr',    pr,       tAll.pr,    '件',  '件');
+  updateProgress('cur',   cur,      tAll.cur,   '件',  '件');
+  updateProgress('nxt',   nxt,      tAll.nxt,   '件',  '件');
+  updateProgress('sales', salesMan, tAll.sales, '万円','万円');
+
+  saveState();
+}
+
+function updateProgress(key, value, target, vU, tU) {
+  const wrap = document.getElementById(`prog-${key}`);
+  const bar  = document.getElementById(`bar-${key}`);
+  const tEl  = document.getElementById(`prog-${key}-target`);
+  const pEl  = document.getElementById(`prog-${key}-pct`);
+  if (!target) { wrap.classList.remove('visible'); return; }
+  wrap.classList.add('visible');
+  const pct = (value / target) * 100;
+  bar.style.width = Math.min(100, pct) + '%';
+  bar.classList.toggle('done', pct >= 100);
+  tEl.textContent = `目標計 ${target.toLocaleString('ja-JP')}${tU}`;
+  pEl.textContent = `${Math.round(pct)}%`;
+}
+
+// ===== アニメーション =====
+function animateInt(id, target, dur = 450) {
+  const el = document.getElementById(id); if (!el) return;
+  const start = parseFloat(el.dataset.current || '0');
+  el.dataset.current = target;
+  const t0 = performance.now();
+  const run = now => {
+    const p = Math.min((now - t0) / dur, 1), e = 1 - Math.pow(1-p, 3);
+    el.textContent = Math.round(start + (target - start) * e).toLocaleString('ja-JP');
+    if (p < 1) requestAnimationFrame(run);
+  };
+  requestAnimationFrame(run);
+}
+function animateFloat(id, target, dec = 1, dur = 450) {
+  const el = document.getElementById(id); if (!el) return;
+  const start = parseFloat(el.dataset.current || '0');
+  el.dataset.current = target;
+  const t0 = performance.now();
+  const run = now => {
+    const p = Math.min((now - t0) / dur, 1), e = 1 - Math.pow(1-p, 3);
+    el.textContent = (start + (target - start) * e).toFixed(dec);
+    if (p < 1) requestAnimationFrame(run);
+  };
+  requestAnimationFrame(run);
+}
+
+// ===== CSV出力 =====
+function exportCSV() {
+  const rows = [[
+    '月','週','メンバー',
+    'PR済','PR-A','当月N済','当月N-A','翌月N済','翌月N-A','売上済(円)','売上A(円)',
+    'PR目標(件)','当月N目標(件)','翌月N目標(件)','売上目標(万円)'
+  ]];
+  monthList.forEach(month => {
+    const names = memberNames[month];
+    for (let w = 1; w <= 4; w++) {
+      const t = targets[month][w];
+      names.forEach((name, mi) => {
+        const tm = t[mi] || {};
+        rows.push([month, `${w}W`, name, ...(data[month][w][mi] || new Array(FIELD_COUNT).fill(0)), tm.pr||0, tm.cur||0, tm.nxt||0, tm.sales||0]);
+      });
+      const tot = new Array(FIELD_COUNT).fill(0);
+      names.forEach((_, mi) => {
+        for (let fi = 0; fi < FIELD_COUNT; fi++) tot[fi] += (data[month][w][mi][fi] || 0);
+      });
+      const ts = { pr: t.reduce((a,m)=>a+(m.pr||0),0), cur: t.reduce((a,m)=>a+(m.cur||0),0), nxt: t.reduce((a,m)=>a+(m.nxt||0),0), sales: t.reduce((a,m)=>a+(m.sales||0),0) };
+      rows.push([month, `${w}W`, '【ユニット計】', ...tot, ts.pr, ts.cur, ts.nxt, ts.sales]);
+    }
+  });
+  const csv  = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\r\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), { href: url });
+  const d    = new Date();
+  a.download = `営業進捗_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.csv`;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+// ===== 起動 =====
+(function() {
+  if (loadState()) {
+    // 復元
+    renderMonthTabs();
+    document.querySelectorAll('.week-btn').forEach((b, i) => b.classList.toggle('active', i + 1 === currentWeek));
+    updateBadge();
+    renderMilestoneTable();
+    renderTable();
+    calculate();
+  } else {
+    // 初回
+    addMonth();
+  }
+})();
+</script>
+</body>
+</html>
